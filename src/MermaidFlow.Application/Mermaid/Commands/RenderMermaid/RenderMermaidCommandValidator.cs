@@ -1,10 +1,11 @@
 using FluentValidation;
+using MermaidFlow.Application.Common.Interfaces;
 
 namespace MermaidFlow.Application.Mermaid.Commands.RenderMermaid;
 
 public class RenderMermaidCommandValidator : AbstractValidator<RenderMermaidCommand>
 {
-    public RenderMermaidCommandValidator()
+    public RenderMermaidCommandValidator(IThemeRepository themeRepository)
     {
         RuleFor(x => x.Code)
             .NotEmpty()
@@ -13,7 +14,11 @@ public class RenderMermaidCommandValidator : AbstractValidator<RenderMermaidComm
 
         RuleFor(x => x.Theme)
             .NotEmpty()
-            .Must(theme => MermaidConstants.AllowedThemes.Contains(theme))
-            .WithMessage($"Theme must be one of: {string.Join(", ", MermaidConstants.AllowedThemes)}.");
+            .MustAsync(async (theme, ct) =>
+            {
+                var t = await themeRepository.GetByNameAsync(theme);
+                return t is not null && t.IsActive;
+            })
+            .WithMessage("Theme is not valid or is not active.");
     }
 }
