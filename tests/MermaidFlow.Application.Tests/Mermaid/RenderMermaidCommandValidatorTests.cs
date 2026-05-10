@@ -1,27 +1,43 @@
 using FluentAssertions;
+using MermaidFlow.Application.Common.Interfaces;
 using MermaidFlow.Application.Mermaid;
 using MermaidFlow.Application.Mermaid.Commands.RenderMermaid;
+using MermaidFlow.Domain.Mermaid;
+using Moq;
 using Xunit;
 
 namespace MermaidFlow.Application.Tests.Mermaid;
 
 public class RenderMermaidCommandValidatorTests
 {
-    private readonly RenderMermaidCommandValidator _validator = new();
+    private readonly Mock<IThemeRepository> _themeRepositoryMock = new();
+    private readonly RenderMermaidCommandValidator _validator;
+
+    public RenderMermaidCommandValidatorTests()
+    {
+        _themeRepositoryMock
+            .Setup(r => r.GetByNameAsync(It.IsAny<string>()))
+            .ReturnsAsync((string name) =>
+                name is "default" or "dark" or "forest" or "neutral"
+                    ? new Theme { Id = Guid.NewGuid(), Name = name, IsActive = true, CreatedAt = DateTime.UtcNow }
+                    : null);
+
+        _validator = new RenderMermaidCommandValidator(_themeRepositoryMock.Object);
+    }
 
     [Fact]
-    public void Validate_ValidCommand_Passes()
+    public async Task Validate_ValidCommand_Passes()
     {
-        var result = _validator.Validate(CreateCommand("graph TD\nA --> B", "default"));
+        var result = await _validator.ValidateAsync(CreateCommand("graph TD\nA --> B", "default"));
         result.IsValid.Should().BeTrue();
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    public void Validate_EmptyCode_Fails(string? code)
+    public async Task Validate_EmptyCode_Fails(string? code)
     {
-        var result = _validator.Validate(CreateCommand(code!, "default"));
+        var result = await _validator.ValidateAsync(CreateCommand(code!, "default"));
         result.IsValid.Should().BeFalse();
     }
 
@@ -30,9 +46,9 @@ public class RenderMermaidCommandValidatorTests
     [InlineData("dark")]
     [InlineData("forest")]
     [InlineData("neutral")]
-    public void Validate_AllowedThemes_Passes(string theme)
+    public async Task Validate_AllowedThemes_Passes(string theme)
     {
-        var result = _validator.Validate(CreateCommand("graph TD\nA --> B", theme));
+        var result = await _validator.ValidateAsync(CreateCommand("graph TD\nA --> B", theme));
         result.IsValid.Should().BeTrue();
     }
 
@@ -41,18 +57,18 @@ public class RenderMermaidCommandValidatorTests
     [InlineData("")]
     [InlineData("invalid")]
     [InlineData("light")]
-    public void Validate_InvalidTheme_Fails(string theme)
+    public async Task Validate_InvalidTheme_Fails(string theme)
     {
-        var result = _validator.Validate(CreateCommand("graph TD\nA --> B", theme));
+        var result = await _validator.ValidateAsync(CreateCommand("graph TD\nA --> B", theme));
         result.IsValid.Should().BeFalse();
     }
 
     [Theory]
     [InlineData(MermaidConstants.MaxCodeLength, true)]
     [InlineData(MermaidConstants.MaxCodeLength + 1, false)]
-    public void Validate_CodeLength_Passes(int length, bool shouldPass)
+    public async Task Validate_CodeLength_Passes(int length, bool shouldPass)
     {
-        var result = _validator.Validate(CreateCommand(new string('a', length), "default"));
+        var result = await _validator.ValidateAsync(CreateCommand(new string('a', length), "default"));
         result.IsValid.Should().Be(shouldPass);
     }
 
