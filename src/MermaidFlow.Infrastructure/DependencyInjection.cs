@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IUsersRepository, UsersRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IDiagramCacheRepository, DiagramCacheRepository>();
+        services.AddScoped<IThemeRepository, ThemeRepository>();
         services.AddScoped<IDocumentExporter, MarkdigDocumentExporter>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
